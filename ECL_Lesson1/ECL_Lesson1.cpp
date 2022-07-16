@@ -29,6 +29,11 @@ Mat CvtCub2Sph(Mat* cube, Mat *original) {
     /*
         구면 파노라마 이미지의 길이는 큐브 맵의 길이를 따른다.
         구면 파노라마 이미지의 높이는 큐브 맵 길이의 1/2. 
+
+        1. 구면 파노라마 이미지 좌표(j, i)를 정규화, 구면 좌표계로 변환한다.
+        2. 구면 좌표계에 대응하는 큐브맵의 좌표를 찾는다.
+        3. 찾은 큐브맵의 좌표가 어느 face에 있는지 찾는다.
+        4. 큐브맵의 좌표를 구면 파노라마 이미지의 좌표(j, i)에 대입한다.
     */
     int Width = cube->size().width;
     float Height = (0.5f) * cube->size().width;
@@ -46,7 +51,7 @@ Mat CvtCub2Sph(Mat* cube, Mat *original) {
     int cubeFaceWidth, cubeFaceHeight;
 
     cubeFaceWidth = cube->size().width / 4;
-    cubeFaceHeight = cube->size().height / 3; //3 vertical faces
+    cubeFaceHeight = cube->size().height / 3;
 
 
     for (int j = 0; j < Height; j++)
@@ -75,7 +80,7 @@ Mat CvtCub2Sph(Mat* cube, Mat *original) {
 
             a = max(abs(x), max(abs(y), abs(z)));
 
-            //Vector Parallel to the unit vector that lies on one of the cube faces
+            // 큐브 면 중 하나에 있는 단위 벡터와 평행한 벡터.
             xa = x / a;
             ya = y / a;
             za = z / a;
@@ -83,22 +88,36 @@ Mat CvtCub2Sph(Mat* cube, Mat *original) {
             int xPixel, yPixel;
             int xOffset, yOffset;
 
-            if (ya == 1)
-            {
-                //Right
-                xPixel = (int)((((xa + 1.f) / 2.f) - 1.f) * cubeFaceWidth);
-                xOffset = 3 * cubeFaceWidth; //Offset
-                yPixel = (int)((((za + 1.f) / 2.f)) * cubeFaceHeight);
-                yOffset = cubeFaceHeight; //Offset
-
-            }
-            else if (ya == -1)
+            
+            /*
+                1. 정규화를 거친 좌표계이기 때문에 2.f로 나누어준다.
+                2. -1 ~ 1로 정규화 되어있는 좌표계에 edge 길이(cubeFaceWidth, cubeFaceHeight)를 곱해준다.
+                3. WorldOffset에 적용한다. 이때 Offset은 큐브맵 좌표계에 따른다. 
+            */
+            if (ya == -1)
             {
                 //Left
-                xPixel = (int)((((xa + 1.f) / 2.f) + 1.f) * cubeFaceWidth);
-                xOffset = 0;
+                xPixel = (int)((((xa + 1.f) / 2.f)) * cubeFaceWidth);
+                xOffset = cubeFaceWidth;
                 yPixel = (int)((((za + 1.f) / 2.f)) * cubeFaceHeight);
                 yOffset = cubeFaceHeight;
+            }
+            else if (ya == 1)
+            {
+               
+                //Right
+                xPixel = (int)((((xa - 1.f) / 2.f)) * cubeFaceWidth);
+                xOffset = 3 * cubeFaceWidth;
+                yPixel = (int)((((za + 1.f) / 2.f)) * cubeFaceHeight);
+                yOffset = cubeFaceHeight; 
+            }            
+            else if (za == -1)
+            {
+                //Top
+                xPixel = (int)((((xa + 1.f) / 2.f)) * cubeFaceWidth);
+                xOffset = cubeFaceWidth;
+                yPixel = (int)((((ya - 1.f) / 2.f)) * cubeFaceHeight);
+                yOffset = 0;
             }
             else if (za == 1)
             {
@@ -108,27 +127,19 @@ Mat CvtCub2Sph(Mat* cube, Mat *original) {
                 yPixel = (int)((((ya + 1.f) / 2.f)) * cubeFaceHeight);
                 yOffset = 2 * cubeFaceHeight;
             }
-            else if (za == -1)
-            {
-                //Top
-                xPixel = (int)((((xa + 1.f) / 2.f)) * cubeFaceWidth);
-                xOffset = cubeFaceWidth;
-                yPixel = (int)((((ya + 1.f) / 2.f) - 1.f) * cubeFaceHeight);
-                yOffset = 0;
-            }
-            else if (xa == -1)
-            {
-                //Back
-                xPixel = (int)((((ya + 1.f) / 2.f) -1.f) * cubeFaceWidth);
-                xOffset = 0;
-                yPixel = (int)((((za + 1.f) / 2.f)) * cubeFaceHeight);
-                yOffset = cubeFaceHeight;
-            }
             else if (xa == 1)
             {
                 //Front
                 xPixel = (int)((((ya + 1.f) / 2.f)) * cubeFaceWidth);
                 xOffset = 2 * cubeFaceWidth;
+                yPixel = (int)((((za + 1.f) / 2.f)) * cubeFaceHeight);
+                yOffset = cubeFaceHeight;
+            }
+            else if (xa == -1)
+            {
+                //Back
+                xPixel = (int)((((ya - 1.f) / 2.f)) * cubeFaceWidth);
+                xOffset = 0;
                 yPixel = (int)((((za + 1.f) / 2.f)) * cubeFaceHeight);
                 yOffset = cubeFaceHeight;
             }
@@ -189,7 +200,7 @@ Mat CvtSph2Cub(Mat* pano) {
             Left(face = 1)일 경우. 가로 범위이기 때문에 top, bottom은 고려할 필요가 없음 
             face = 0, (1, 4, 5,) 2, 3 으로 진행.
         */
-        if (face == 1) // Left
+        if (face == 1) // Left, Right, Front, Back 의 범위.
         {
             startIndex = 0;
             range = 3 * edge;
@@ -210,9 +221,7 @@ Mat CvtSph2Cub(Mat* pano) {
             else if (y >= 2 * edge) // Bottom
                 face = 5;
 
-
             /* 
-            
                 1. 구면 파노라마 이미지 좌표를 큐브맵에 배치 
                 2. edge 값에 따라 face가 결정. face에 따른 3차원 좌표값(구면 파노라마 이미지 좌표계)을 큐브맵 좌표계(2차원)으로 투영.
                 3. 투영된 2차원 좌표값을 구면 좌표계로 변환
@@ -223,20 +232,19 @@ Mat CvtSph2Cub(Mat* pano) {
             point = GetCubemapCoordinate(x, y, face, edge, point);
 
             // 경도값
-            float latitude; 
+            float phi; 
 
             // 위도값
-            float longitude;
+            float theta;
 
             // 큐브맵 좌표계
             int polarX;
             int polarY;
 
-
-            latitude = atan2(point[1], point[0]);
-            longitude = atan2(point[2], sqrt(pow(point[0], 2) + pow(point[1], 2)));
-            polarX = 2 * edge * ((latitude + PI) / PI);
-            polarY = 2 * edge * (((PI / 2) - longitude) / PI);
+            phi = atan2(point[1], point[0]);
+            theta = atan2(point[2], sqrt(pow(point[0], 2) + pow(point[1], 2)));
+            polarX = 2 * edge * ((phi + PI) / PI);
+            polarY = 2 * edge * (((PI / 2) - theta) / PI);
             // cout << polarX << " " <<  polarY << " " << face << endl;
 
             cubemap.at<Vec3b>(y, x) = pano->at<Vec3b>(polarY, polarX);
@@ -253,22 +261,20 @@ int main(int ac, char** av) {
     Mat img = imread("Panorama.png"); //자신이 저장시킨 이미지 이름이 입력되어야 함, 확장자까지
 
 
-     /* 큐브맵 저장 받을 Mat 변수 */
-    int cubeWidth = img.size().width;
-    float cubeHeight = (0.75f) * img.size().width;
-    Mat Result;
-    Result = Mat::zeros(cubeHeight, cubeWidth, img.type());
+     /* Mat 선언 */
+    Mat SphericalToCubemap;
+    SphericalToCubemap = Mat::zeros((0.75f) * img.size().width, img.size().width, img.type());
+    Mat CubemapToSpherical;
+    CubemapToSpherical = Mat::zeros(img.size().height, img.size().width, img.type());
 
     /* 변환함수 */
-    Result = CvtSph2Cub(&img);
+    SphericalToCubemap = CvtSph2Cub(&img);
+    CubemapToSpherical = CvtCub2Sph(&SphericalToCubemap, &img);
 
-    Mat Result2;
-    Result2 = Mat::zeros(img.size().height, img.size().width, img.type());
-    Result2 = CvtCub2Sph(&Result, &img);
-
-    imshow("Spherical Panorama Image", img);
-    imshow("Cubemap Image", Result);
-    imshow("Spherical Image", Result2);
+    /* 이미지 출력 */
+    imshow("Spherical Panorama Original Image", img);
+    imshow("Cubemap Image", SphericalToCubemap);
+    imshow("Spherical Image", CubemapToSpherical);
     waitKey(0);
 
     return 0;

@@ -28,3 +28,6 @@ ___
     - 입력 인자: 6개의 큐브맵 영상 배열   
     - 출력 인자: 하나의 구면 파노라마 영상   
 
+- __현재(2022-07-16 코드 결과)__   
+
+![Spherical Image](./Panorama.png) -> ![Cubemap Image](./Cubemap.png)   

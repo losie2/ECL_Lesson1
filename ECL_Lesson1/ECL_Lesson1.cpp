@@ -89,6 +89,9 @@ int main(int ac, char** av) {
     /* 파노라마 이미지 불러오기 */
     Mat img = imread("Panorama.png"); //자신이 저장시킨 이미지 이름이 입력되어야 함, 확장자까지
 
+    imshow("Spherical Panorama Image", img);
+    waitKey(0);
+
      /* 큐브맵 저장 받을 Mat 변수 */
     int cubeWidth = img.size().width;
     float cubeHeight = (0.75f) * img.size().width;

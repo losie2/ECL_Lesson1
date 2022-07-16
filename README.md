@@ -30,4 +30,5 @@ ___
 
 - __현재(2022-07-16 코드 결과)__   
 
-![Spherical Image](./Panorama.png) -> ![Cubemap Image](./Cubemap.png)   
+![Spherical Image](./Panorama.png)   ->
+ ![Cubemap Image](./Cubemap.png)   

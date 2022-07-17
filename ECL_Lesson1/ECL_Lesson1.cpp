@@ -10,8 +10,13 @@ constexpr auto PI = 3.141592;;
 using namespace cv;
 using namespace std;
 
-float* GetCubemapCoordinate(int x, int y, int face, int edge, float* point)
+float* GetCubemapCoordinate(int x, int y, int face, int edge, float* point)   
 {
+    /*
+        -1 ~ 1 사이 정규화된 좌표값 내에서 point를 정해주어야 한다.
+        즉, 2의 길이가 필요하기 때문에 a, b에 2를 곱해준다.
+        edge < y < 2*edge 사이 b = 2 * 1.??????f이고, 2~4의 범위를 갖는다. 
+    */
     float a = 2 * (x / (float)edge);
     float b = 2 * (y / (float)edge);
 
@@ -80,7 +85,11 @@ Mat CvtCub2Sph(Mat* cube, Mat *original) {
 
             a = max(abs(x), max(abs(y), abs(z)));
 
-            // 큐브 면 중 하나에 있는 단위 벡터와 평행한 벡터.
+            /*
+                큐브 면 중 하나에 있는 단위 벡터와 평행한 벡터.
+                즉, ya와 평행하다면 xz 평면과 평행 하다는 의미.
+                이 때, ya가 -1인지 1인지(Left, Right) 값을 보고 평면을 결정.
+            */
             xa = x / a;
             ya = y / a;
             za = z / a;
@@ -104,7 +113,6 @@ Mat CvtCub2Sph(Mat* cube, Mat *original) {
             }
             else if (ya == 1)
             {
-               
                 //Right
                 xPixel = (int)((((xa - 1.f) / 2.f)) * cubeFaceWidth);
                 xOffset = 3 * cubeFaceWidth;
@@ -150,13 +158,11 @@ Mat CvtCub2Sph(Mat* cube, Mat *original) {
                 xOffset = 0;
                 yOffset = 0;
             }
-
             xPixel = abs(xPixel);
             yPixel = abs(yPixel);
 
             xPixel += xOffset;
             yPixel += yOffset;
-
 
             spherical.at<Vec3b>(j, i) = cube->at<Vec3b>(yPixel, xPixel);
         }
@@ -200,7 +206,7 @@ Mat CvtSph2Cub(Mat* pano) {
             Left(face = 1)일 경우. 가로 범위이기 때문에 top, bottom은 고려할 필요가 없음 
             face = 0, (1, 4, 5,) 2, 3 으로 진행.
         */
-        if (face == 1) // Left, Right, Front, Back 의 범위.
+        if (face == 1) // Left(Top, Bottom)
         {
             startIndex = 0;
             range = 3 * edge;
@@ -241,16 +247,33 @@ Mat CvtSph2Cub(Mat* pano) {
             int polarX;
             int polarY;
 
+
+            /*
+                atan2(a, b)는 원점에서 (a, b) 까지 상대적인 각도(위치)이다.
+                phi는 경도이고, 원점에서 (point[1] = y, point[0] = x)까지의 상대적인 각도를 구한다.
+                이 때 (point[1] = y, point[0] = x)는 큐브맵 위의 한 face 위 점이므로 구면 파노라마의 한 좌표로 표현하기 위해 atan2를 사용한다.
+
+                theta는 위도이고, 90 ~ -90 degree의 범위를 가진다.
+                범위를 벗어나게 하지 않기 위해 x, y 사이 거리를 2번째 인자로 준다.
+                원점이 기준이므로 원점과 (point[2] = z, 거리) 사이의 각도이다.
+
+            */
             phi = atan2(point[1], point[0]);
             theta = atan2(point[2], sqrt(pow(point[0], 2) + pow(point[1], 2)));
+
+
+            /*
+                (phi + PI) / PI는 phi 만큼 회전한 구면 위의 이미지 상 (x, y)좌표이다.
+                ((PI / 2) - theta) / PI는 90 ~ -90 범위내에서 theta만큼 회전한 구면 위의 이미지 상 (x, y, z)좌표이다.
+                이렇게 구한 구면 파노라마 이미지 상의 좌표를 큐브맵 이미지 좌표계에 대입한다.
+            */
             polarX = 2 * edge * ((phi + PI) / PI);
             polarY = 2 * edge * (((PI / 2) - theta) / PI);
-            // cout << polarX << " " <<  polarY << " " << face << endl;
 
             cubemap.at<Vec3b>(y, x) = pano->at<Vec3b>(polarY, polarX);
 
             face = prev_face;
-        }
+        }       
     }
     return cubemap;
 }

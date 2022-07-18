@@ -75,7 +75,7 @@ Mat CvtCub2Sph(Mat* cube, Mat *original) {
             u = ((float)i / Width);
             phi = u * 2 * PI;
 
-            float x, y, z; //Unit vector
+            float x, y, z; // 단위 벡터
             x = cos(phi) * sin(theta) * -1;
             y = sin(phi) * sin(theta) * -1;
             z = cos(theta);
@@ -87,8 +87,10 @@ Mat CvtCub2Sph(Mat* cube, Mat *original) {
 
             /*
                 큐브 면 중 하나에 있는 단위 벡터와 평행한 벡터.
-                즉, ya와 평행하다면 xz 평면과 평행 하다는 의미.
                 이 때, ya가 -1인지 1인지(Left, Right) 값을 보고 평면을 결정.
+
+                ya가 1 or -1이라면 y벡터의 변화가 없다는 뜻. 즉 xz평면만 고려한다는 의미.
+                xa와 za도 동일하게 적용.
             */
             xa = x / a;
             ya = y / a;
